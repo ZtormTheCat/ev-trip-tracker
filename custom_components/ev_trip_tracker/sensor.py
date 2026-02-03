@@ -5,25 +5,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
-
-from .const import (
-    DOMAIN,
-    CONF_ODOMETER_SENSOR,
-    CONF_BATTERY_SENSOR,
-    CONF_LOCATION_TRACKER,
-    CONF_DRIVING_STATE_SENSOR,
-    CONF_BATTERY_CAPACITY,
-    ATTR_START_TIME,
-    ATTR_END_TIME,
-    ATTR_START_ODOMETER,
-    ATTR_END_ODOMETER,
-    ATTR_START_BATTERY,
-    ATTR_END_BATTERY,
-    ATTR_DISTANCE,
-    ATTR_ENERGY_USED,
-    ATTR_AVG_SPEED,
-    ATTR_DURATION,
-)
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from .const import *
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,11 +61,11 @@ class EVCurrentTripSensor(SensorEntity):
         is_driving = new_state.state in ["on", "driving", "true", "True", True]
 
         if is_driving and self._state == "idle":
-            self._start_trip()
+            self.hass.async_create_task(self._start_trip())
         elif not is_driving and self._state == "active":
-            self._end_trip()
+            self.hass.async_create_task(self._end_trip())
 
-    def _start_trip(self) -> None:
+    async def _start_trip(self) -> None:
         """Start a new trip."""
         _LOGGER.info("Trip started")
         self._state = "active"
@@ -91,17 +74,22 @@ class EVCurrentTripSensor(SensorEntity):
         battery = self.hass.states.get(self._config[CONF_BATTERY_SENSOR])
         location = self.hass.states.get(self._config[CONF_LOCATION_TRACKER])
 
+        lat = location.attributes.get("latitude") if location else None
+        lon = location.attributes.get("longitude") if location else None
+
         self._trip_data = {
             ATTR_START_TIME: datetime.now().isoformat(),
             ATTR_START_ODOMETER: float(odometer.state) if odometer else None,
             ATTR_START_BATTERY: float(battery.state) if battery else None,
-            "start_latitude": location.attributes.get("latitude") if location else None,
-            "start_longitude": location.attributes.get("longitude") if location else None,
+            "start_latitude": lat,
+            "start_longitude": lon,
+            ATTR_START_ELEVATION: await self._get_elevation(lat, lon)
+            if lat and lon
+            else None,
         }
-
         self.async_write_ha_state()
 
-    def _end_trip(self) -> None:
+    async def _end_trip(self) -> None:
         """End the current trip."""
         _LOGGER.info("Trip ended")
 
@@ -109,22 +97,25 @@ class EVCurrentTripSensor(SensorEntity):
         battery = self.hass.states.get(self._config[CONF_BATTERY_SENSOR])
         location = self.hass.states.get(self._config[CONF_LOCATION_TRACKER])
 
+        lat = location.attributes.get("latitude") if location else None
+        lon = location.attributes.get("longitude") if location else None
+
         self._trip_data[ATTR_END_TIME] = datetime.now().isoformat()
         self._trip_data[ATTR_END_ODOMETER] = float(odometer.state) if odometer else None
         self._trip_data[ATTR_END_BATTERY] = float(battery.state) if battery else None
-        self._trip_data["end_latitude"] = location.attributes.get("latitude") if location else None
-        self._trip_data["end_longitude"] = location.attributes.get("longitude") if location else None
+        self._trip_data["end_latitude"] = lat
+        self._trip_data["end_longitude"] = lon
+        self._trip_data[ATTR_END_ELEVATION] = (
+            await self._get_elevation(lat, lon) if lat and lon else None
+        )
 
-        # Calculate trip metrics
         self._calculate_trip_metrics()
 
-        # Store as last trip
-        self.hass.data[DOMAIN][self._entry.entry_id]["last_trip"] = self._trip_data.copy()
-
-        # Fire event for automations
+        self.hass.data[DOMAIN][self._entry.entry_id]["last_trip"] = (
+            self._trip_data.copy()
+        )
         self.hass.bus.async_fire(f"{DOMAIN}_trip_completed", self._trip_data)
 
-        # Reset
         self._state = "idle"
         self._trip_data = {}
         self.async_write_ha_state()
@@ -155,7 +146,27 @@ class EVCurrentTripSensor(SensorEntity):
         # Average speed
         if self._trip_data.get(ATTR_DISTANCE) and duration.total_seconds() > 0:
             hours = duration.total_seconds() / 3600
-            self._trip_data[ATTR_AVG_SPEED] = round(self._trip_data[ATTR_DISTANCE] / hours, 1)
+            self._trip_data[ATTR_AVG_SPEED] = round(
+                self._trip_data[ATTR_DISTANCE] / hours, 1
+            )
+
+        # Elevation diff
+        start_elev = self._trip_data.get(ATTR_START_ELEVATION)
+        end_elev = self._trip_data.get(ATTR_END_ELEVATION)
+        if start_elev is not None and end_elev is not None:
+            self._trip_data[ATTR_ELEVATION_DIFF] = round(end_elev - start_elev, 1)
+
+    async def _get_elevation(self, lat: float, lon: float) -> float | None:
+        """Fetch elevation from Open-Elevation API."""
+        try:
+            session = async_get_clientsession(self.hass)
+            url = f"https://api.open-elevation.com/api/v1/lookup?locations={lat},{lon}"
+            async with session.get(url) as response:
+                data = await response.json()
+                return data["results"][0]["elevation"]
+        except Exception as e:
+            _LOGGER.warning("Failed to fetch elevation: %s", e)
+            return None
 
     @property
     def state(self):
