@@ -5,6 +5,8 @@ CONF_BATTERY_SENSOR = "battery_sensor"
 CONF_LOCATION_TRACKER = "location_tracker"
 CONF_DRIVING_STATE_SENSOR = "driving_state_sensor"
 CONF_BATTERY_CAPACITY = "battery_capacity"
+CONF_TRIP_END_DELAY = "trip_end_delay"
+DEFAULT_TRIP_END_DELAY = 1800  # seconds
 
 ATTR_START_TIME = "start_time"
 ATTR_END_TIME = "end_time"

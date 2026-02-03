@@ -6,7 +6,32 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from .const import *
+from homeassistant.helpers.event import async_call_later
+from .const import (
+    DOMAIN,
+    CONF_ODOMETER_SENSOR,
+    CONF_BATTERY_SENSOR,
+    CONF_LOCATION_TRACKER,
+    CONF_DRIVING_STATE_SENSOR,
+    CONF_BATTERY_CAPACITY,
+    CONF_TRIP_END_DELAY,
+    DEFAULT_TRIP_END_DELAY,
+    ATTR_START_TIME,
+    ATTR_END_TIME,
+    ATTR_START_ODOMETER,
+    ATTR_END_ODOMETER,
+    ATTR_START_BATTERY,
+    ATTR_END_BATTERY,
+    ATTR_START_LOCATION,
+    ATTR_END_LOCATION,
+    ATTR_DISTANCE,
+    ATTR_ENERGY_USED,
+    ATTR_AVG_SPEED,
+    ATTR_DURATION,
+    ATTR_START_ELEVATION,
+    ATTR_END_ELEVATION,
+    ATTR_ELEVATION_DIFF,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,6 +62,7 @@ class EVCurrentTripSensor(SensorEntity):
         self._state = "idle"
         self._trip_data = {}
         self._unsub = None
+        self._end_trip_timer = None
 
     async def async_added_to_hass(self) -> None:
         """Start tracking state changes."""
@@ -50,6 +76,8 @@ class EVCurrentTripSensor(SensorEntity):
         """Clean up."""
         if self._unsub:
             self._unsub()
+        if self._end_trip_timer:
+            self._end_trip_timer()
 
     @callback
     def _handle_driving_state_change(self, event) -> None:
@@ -61,9 +89,36 @@ class EVCurrentTripSensor(SensorEntity):
         is_driving = new_state.state in ["on", "driving", "true", "True", True]
 
         if is_driving and self._state == "idle":
+            # Cancel any pending trip end
+            if self._end_trip_timer:
+                self._end_trip_timer()
+                self._end_trip_timer = None
             self.hass.async_create_task(self._start_trip())
+
+        elif is_driving and self._state == "active":
+            # Resumed driving, cancel pending trip end
+            if self._end_trip_timer:
+                self._end_trip_timer()
+                self._end_trip_timer = None
+                _LOGGER.debug("Trip end cancelled - driving resumed")
+
         elif not is_driving and self._state == "active":
-            self.hass.async_create_task(self._end_trip())
+            # Start delayed trip end
+            delay = self._config.get(CONF_TRIP_END_DELAY, DEFAULT_TRIP_END_DELAY)
+            _LOGGER.debug("Trip end scheduled in %s seconds", delay)
+
+            if self._end_trip_timer:
+                self._end_trip_timer()
+
+            self._end_trip_timer = async_call_later(
+                self.hass, delay, self._delayed_end_trip
+            )
+
+    @callback
+    def _delayed_end_trip(self, _now) -> None:
+        """End trip after delay."""
+        self._end_trip_timer = None
+        self.hass.async_create_task(self._end_trip())
 
     async def _start_trip(self) -> None:
         """Start a new trip."""
