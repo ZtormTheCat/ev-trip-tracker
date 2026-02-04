@@ -31,6 +31,9 @@ from .const import (
     ATTR_START_ELEVATION,
     ATTR_END_ELEVATION,
     ATTR_ELEVATION_DIFF,
+    ATTR_END_TEMPERATURE,
+    ATTR_AVG_TEMPERATURE,
+    ATTR_START_TEMPERATURE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -63,6 +66,7 @@ class EVCurrentTripSensor(SensorEntity):
         self._trip_data = {}
         self._unsub = None
         self._end_trip_timer = None
+        self._temperature_readings = []
 
     async def async_added_to_hass(self) -> None:
         """Start tracking state changes."""
@@ -132,15 +136,14 @@ class EVCurrentTripSensor(SensorEntity):
         lat = location.attributes.get("latitude") if location else None
         lon = location.attributes.get("longitude") if location else None
 
+        location_data = await self._get_location_data(lat, lon) if lat and lon else {}
+
         self._trip_data = {
             ATTR_START_TIME: datetime.now().isoformat(),
             ATTR_START_ODOMETER: float(odometer.state) if odometer else None,
             ATTR_START_BATTERY: float(battery.state) if battery else None,
-            "start_latitude": lat,
-            "start_longitude": lon,
-            ATTR_START_ELEVATION: await self._get_elevation(lat, lon)
-            if lat and lon
-            else None,
+            ATTR_START_ELEVATION: location_data.get("elevation"),
+            ATTR_START_TEMPERATURE: location_data.get("temperature"),
         }
         self.async_write_ha_state()
 
@@ -155,14 +158,13 @@ class EVCurrentTripSensor(SensorEntity):
         lat = location.attributes.get("latitude") if location else None
         lon = location.attributes.get("longitude") if location else None
 
+        location_data = await self._get_location_data(lat, lon) if lat and lon else {}
+
         self._trip_data[ATTR_END_TIME] = datetime.now().isoformat()
         self._trip_data[ATTR_END_ODOMETER] = float(odometer.state) if odometer else None
         self._trip_data[ATTR_END_BATTERY] = float(battery.state) if battery else None
-        self._trip_data["end_latitude"] = lat
-        self._trip_data["end_longitude"] = lon
-        self._trip_data[ATTR_END_ELEVATION] = (
-            await self._get_elevation(lat, lon) if lat and lon else None
-        )
+        self._trip_data[ATTR_END_ELEVATION] = location_data.get("elevation")
+        self._trip_data[ATTR_END_TEMPERATURE] = location_data.get("temperature")
 
         self._calculate_trip_metrics()
 
@@ -211,17 +213,27 @@ class EVCurrentTripSensor(SensorEntity):
         if start_elev is not None and end_elev is not None:
             self._trip_data[ATTR_ELEVATION_DIFF] = round(end_elev - start_elev, 1)
 
-    async def _get_elevation(self, lat: float, lon: float) -> float | None:
-        """Fetch elevation from Open-Elevation API."""
+        start_temp = self._trip_data.get(ATTR_START_TEMPERATURE)
+        end_temp = self._trip_data.get(ATTR_END_TEMPERATURE)
+        if start_temp is not None and end_temp is not None:
+            self._trip_data[ATTR_AVG_TEMPERATURE] = round(
+                ((start_temp + end_temp) / 2), 1
+            )
+
+    async def _get_location_data(self, lat: float, lon: float) -> dict:
+        """Fetch elevation and temperature from Open-Meteo API."""
         try:
             session = async_get_clientsession(self.hass)
-            url = f"https://api.open-elevation.com/api/v1/lookup?locations={lat},{lon}"
+            url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
             async with session.get(url) as response:
                 data = await response.json()
-                return data["results"][0]["elevation"]
+                return {
+                    "elevation": data.get("elevation"),
+                    "temperature": data.get("current_weather", {}).get("temperature"),
+                }
         except Exception as e:
-            _LOGGER.warning("Failed to fetch elevation: %s", e)
-            return None
+            _LOGGER.warning("Failed to fetch location data: %s", e)
+            return {"elevation": None, "temperature": None}
 
     @property
     def state(self):

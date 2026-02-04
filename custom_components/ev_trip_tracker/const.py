@@ -23,3 +23,7 @@ ATTR_DURATION = "duration"
 ATTR_START_ELEVATION = "start_elevation"
 ATTR_END_ELEVATION = "end_elevation"
 ATTR_ELEVATION_DIFF = "elevation_diff"
+
+ATTR_START_TEMPERATURE = "start_temperature"
+ATTR_END_TEMPERATURE = "end_temperature"
+ATTR_AVG_TEMPERATURE = "avg_temperature"

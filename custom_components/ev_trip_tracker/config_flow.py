@@ -27,6 +27,9 @@ from .const import (
     ATTR_START_ELEVATION,
     ATTR_END_ELEVATION,
     ATTR_ELEVATION_DIFF,
+    ATTR_END_TEMPERATURE,
+    ATTR_AVG_TEMPERATURE,
+    ATTR_START_TEMPERATURE,
 )
 
 _LOGGER = logging.getLogger(__name__)
