@@ -37,6 +37,61 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
+class EVTripTrackerOptionsFlow(config_entries.OptionsFlow):
+    """Handle options flow."""
+
+    async def async_step_init(self, user_input=None):
+        """Manage options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        # Pre-fill with current values
+        current = {**self.config_entry.data, **self.config_entry.options}
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_DRIVING_STATE_SENSOR,
+                    default=current.get(CONF_DRIVING_STATE_SENSOR),
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain=["binary_sensor", "sensor"])
+                ),
+                vol.Required(
+                    CONF_ODOMETER_SENSOR, default=current.get(CONF_ODOMETER_SENSOR)
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Required(
+                    CONF_BATTERY_SENSOR, default=current.get(CONF_BATTERY_SENSOR)
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Required(
+                    CONF_LOCATION_TRACKER, default=current.get(CONF_LOCATION_TRACKER)
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain=["device_tracker", "sensor"])
+                ),
+                vol.Required(
+                    CONF_BATTERY_CAPACITY,
+                    default=current.get(CONF_BATTERY_CAPACITY, 60),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=1, max=200, unit_of_measurement="kWh"
+                    )
+                ),
+                vol.Required(
+                    CONF_TRIP_END_DELAY,
+                    default=current.get(CONF_TRIP_END_DELAY, DEFAULT_TRIP_END_DELAY),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0, max=3600, step=10, unit_of_measurement="seconds"
+                    )
+                ),
+            }
+        )
+        return self.async_show_form(step_id="init", data_schema=data_schema)
+
+
 class EVTripTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for EV Trip Tracker."""
 
@@ -96,59 +151,3 @@ class EVTripTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> EVTripTrackerOptionsFlow:
         """Create the options flow."""
         return EVTripTrackerOptionsFlow()
-
-
-class EVTripTrackerOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow."""
-
-    async def async_step_init(self, user_input=None):
-        """Manage options."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
-
-        # Pre-fill with current values
-        current = {**self.config_entry.data, **self.config_entry.options}
-
-        data_schema = vol.Schema(
-            {
-                vol.Required(
-                    CONF_DRIVING_STATE_SENSOR,
-                    default=current.get(CONF_DRIVING_STATE_SENSOR),
-                ): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain=["binary_sensor", "sensor"])
-                ),
-                vol.Required(
-                    CONF_ODOMETER_SENSOR, default=current.get(CONF_ODOMETER_SENSOR)
-                ): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Required(
-                    CONF_BATTERY_SENSOR, default=current.get(CONF_BATTERY_SENSOR)
-                ): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Required(
-                    CONF_LOCATION_TRACKER, default=current.get(CONF_LOCATION_TRACKER)
-                ): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain=["device_tracker", "sensor"])
-                ),
-                vol.Required(
-                    CONF_BATTERY_CAPACITY,
-                    default=current.get(CONF_BATTERY_CAPACITY, 60),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=1, max=200, unit_of_measurement="kWh"
-                    )
-                ),
-                vol.Required(
-                    CONF_TRIP_END_DELAY,
-                    default=current.get(CONF_TRIP_END_DELAY, DEFAULT_TRIP_END_DELAY),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0, max=3600, step=10, unit_of_measurement="seconds"
-                    )
-                ),
-            }
-        )
-
-        return self.async_show_form(step_id="init", data_schema=data_schema)
