@@ -120,6 +120,8 @@ class EVCurrentTripSensor(SensorEntity):
                 _LOGGER.debug("Trip end cancelled - driving resumed")
 
         elif not is_driving and self._state == "active":
+            self._trip_data["_actual_end_time"] = datetime.now().isoformat()
+
             # Start delayed trip end
             delay = self._config.get(CONF_TRIP_END_DELAY, DEFAULT_TRIP_END_DELAY)
             _LOGGER.debug("Trip end scheduled in %s seconds", delay)
@@ -173,7 +175,10 @@ class EVCurrentTripSensor(SensorEntity):
 
         location_data = await self._get_location_data(lat, lon) if lat and lon else {}
 
-        self._trip_data[ATTR_END_TIME] = datetime.now().isoformat()
+        # Use actual end time (when driving stopped), not now
+        self._trip_data[ATTR_END_TIME] = self._trip_data.pop(
+            "_actual_end_time", datetime.now().isoformat()
+        )
         self._trip_data[ATTR_END_ODOMETER] = float(odometer.state) if odometer else None
         self._trip_data[ATTR_END_BATTERY] = float(battery.state) if battery else None
         self._trip_data[ATTR_END_ELEVATION] = location_data.get("elevation")
