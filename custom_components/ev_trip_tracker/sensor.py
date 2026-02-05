@@ -59,7 +59,7 @@ class EVCurrentTripSensor(SensorEntity):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, config: dict) -> None:
         self.hass = hass
         self._entry = entry
-        self._config = config
+        self._config = {**entry.data, **entry.options}
         self._attr_name = "EV Current Trip"
         self._attr_unique_id = f"{entry.entry_id}_current_trip"
         self._state = "idle"
@@ -75,6 +75,18 @@ class EVCurrentTripSensor(SensorEntity):
             [self._config[CONF_DRIVING_STATE_SENSOR]],
             self._handle_driving_state_change,
         )
+
+        # Listen for options updates
+        self.async_on_remove(
+            self._entry.add_update_listener(self._async_options_updated)
+        )
+
+    async def _async_options_updated(
+        self, hass: HomeAssistant, entry: ConfigEntry
+    ) -> None:
+        """Handle options update."""
+        self._config = {**entry.data, **entry.options}
+        _LOGGER.debug("Options updated: %s", self._config)
 
     async def async_will_remove_from_hass(self) -> None:
         """Clean up."""
