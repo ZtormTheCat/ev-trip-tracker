@@ -26,6 +26,7 @@ from .const import (
     ATTR_END_LOCATION,
     ATTR_DISTANCE,
     ATTR_ENERGY_USED,
+    ATTR_ENERGY_CONSUMPTION,
     ATTR_AVG_SPEED,
     ATTR_DURATION,
     ATTR_START_ELEVATION,
@@ -207,6 +208,15 @@ class EVCurrentTripSensor(SensorEntity):
             battery_capacity = self._config[CONF_BATTERY_CAPACITY]
             energy = (start_bat - end_bat) / 100 * battery_capacity
             self._trip_data[ATTR_ENERGY_USED] = round(energy, 2)
+
+        if start_bat and end_bat and start_odo and end_odo:
+            self._trip_data[ATTR_ENERGY_CONSUMPTION] = round(
+                (
+                    (self._trip_data[ATTR_ENERGY_USED] / self._trip_data[ATTR_DISTANCE])
+                    * 100
+                ),
+                2,
+            )
 
         # Duration
         duration = end_time - start_time
