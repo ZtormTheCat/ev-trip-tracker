@@ -1,0 +1,17 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure EV Trip Tracker",
+        "description": "Select the sensors from your EV integration",
+        "data": {
+          "driving_state_sensor": "Driving State Sensor",
+          "odometer_sensor": "Odometer Sensor",
+          "battery_sensor": "Battery Level Sensor",
+          "location_tracker": "Location Tracker",
+          "battery_capacity": "Battery Capacity (kWh)"
+        }
+      }
+    }
+  }
+}

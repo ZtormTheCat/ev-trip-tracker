@@ -1,0 +1,12 @@
+{
+  "domain": "ev_trip_tracker",
+  "name": "EV Trip Tracker",
+  "codeowners": ["@yourusername"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/ZtormTheCat/ev-trip-tracker",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/ZtormTheCat/ev-trip-tracker",
+  "requirements": [],
+  "version": "0.1.0"
+}
