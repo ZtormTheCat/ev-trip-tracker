@@ -14,6 +14,10 @@ from .const import (
     CONF_BATTERY_CAPACITY,
     CONF_TRIP_END_DELAY,
     DEFAULT_TRIP_END_DELAY,
+    CONF_MIN_TRIP_DISTANCE,
+    DEFAULT_MIN_TRIP_DISTANCE,
+    CONF_MIN_TRIP_DURATION,
+    DEFAULT_MIN_TRIP_DURATION,
     ATTR_START_TIME,
     ATTR_END_TIME,
     ATTR_START_ODOMETER,
@@ -87,6 +91,26 @@ class EVTripTrackerOptionsFlow(config_entries.OptionsFlow):
                         min=0, max=3600, step=10, unit_of_measurement="seconds"
                     )
                 ),
+                vol.Required(
+                    CONF_MIN_TRIP_DISTANCE,
+                    default=current.get(
+                        CONF_MIN_TRIP_DISTANCE, DEFAULT_MIN_TRIP_DISTANCE
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0, max=10, step=1, unit_of_measurement="km"
+                    )
+                ),
+                vol.Required(
+                    CONF_MIN_TRIP_DURATION,
+                    default=current.get(
+                        CONF_MIN_TRIP_DURATION, DEFAULT_MIN_TRIP_DURATION
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0, max=600, step=10, unit_of_measurement="seconds"
+                    )
+                ),
             }
         )
         return self.async_show_form(step_id="init", data_schema=data_schema)
@@ -133,6 +157,20 @@ class EVTripTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
                         min=0, max=3600, step=10, unit_of_measurement="seconds"
+                    )
+                ),
+                vol.Required(
+                    CONF_MIN_TRIP_DISTANCE, default=DEFAULT_MIN_TRIP_DISTANCE
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0, max=10, step=1, unit_of_measurement="km"
+                    )
+                ),
+                vol.Required(
+                    CONF_MIN_TRIP_DURATION, default=DEFAULT_MIN_TRIP_DURATION
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0, max=600, step=10, unit_of_measurement="seconds"
                     )
                 ),
             }

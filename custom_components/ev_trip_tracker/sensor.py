@@ -15,6 +15,10 @@ from .const import (
     CONF_DRIVING_STATE_SENSOR,
     CONF_BATTERY_CAPACITY,
     CONF_TRIP_END_DELAY,
+    CONF_MIN_TRIP_DISTANCE,
+    DEFAULT_MIN_TRIP_DISTANCE,
+    CONF_MIN_TRIP_DURATION,
+    DEFAULT_MIN_TRIP_DURATION,
     DEFAULT_TRIP_END_DELAY,
     ATTR_START_TIME,
     ATTR_END_TIME,
@@ -186,10 +190,31 @@ class EVCurrentTripSensor(SensorEntity):
 
         self._calculate_trip_metrics()
 
-        self.hass.data[DOMAIN][self._entry.entry_id]["last_trip"] = (
-            self._trip_data.copy()
-        )
-        self.hass.bus.async_fire(f"{DOMAIN}_trip_completed", self._trip_data)
+        start_time = datetime.fromisoformat(self._trip_data[ATTR_START_TIME])
+        end_time = datetime.fromisoformat(self._trip_data[ATTR_END_TIME])
+        duration = end_time - start_time
+
+        if self._trip_data[ATTR_DISTANCE] < self._config.get(
+            CONF_MIN_TRIP_DISTANCE, DEFAULT_MIN_TRIP_DISTANCE
+        ):
+            _LOGGER.info(
+                "Trip with distance of %s is too short, min trip distance is %s",
+                self._trip_data[ATTR_DISTANCE],
+                self._config.get(CONF_MIN_TRIP_DISTANCE, DEFAULT_MIN_TRIP_DISTANCE),
+            )
+        elif duration.total_seconds() < self._config.get(
+            CONF_MIN_TRIP_DURATION, DEFAULT_MIN_TRIP_DURATION
+        ):
+            _LOGGER.info(
+                "Trip with duration of %s is too short, min trip duration is %s",
+                self._trip_data[ATTR_DURATION],
+                self._config.get(CONF_MIN_TRIP_DURATION, DEFAULT_MIN_TRIP_DURATION),
+            )
+        else:
+            self.hass.data[DOMAIN][self._entry.entry_id]["last_trip"] = (
+                self._trip_data.copy()
+            )
+            self.hass.bus.async_fire(f"{DOMAIN}_trip_completed", self._trip_data)
 
         self._state = "idle"
         self._trip_data = {}
