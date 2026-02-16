@@ -1,7 +1,7 @@
 {
   "domain": "ev_trip_tracker",
   "name": "EV Trip Tracker",
-  "codeowners": ["@yourusername"],
+  "codeowners": ["@ZtormTheCat"],
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/ZtormTheCat/ev-trip-tracker",
