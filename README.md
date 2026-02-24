@@ -43,6 +43,5 @@ These entities are needed for the integration to fully function
 - Sample temperature during trip to get better average
 
 ## Open points/ideas
-- Stop tracking when starting charging, to avoid negative consumption
 - Track temperature and potentially weather/rainfall during the trip in fixed intervals
 - Support other data formats, like consumption or battery in kwh

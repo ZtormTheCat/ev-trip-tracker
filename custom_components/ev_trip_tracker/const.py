@@ -2,6 +2,7 @@ DOMAIN = "ev_trip_tracker"
 
 CONF_ODOMETER_SENSOR = "odometer_sensor"
 CONF_BATTERY_SENSOR = "battery_sensor"
+CONF_CHARGING_STATE_SENSOR = "charging_state_sensor"
 CONF_LOCATION_TRACKER = "location_tracker"
 CONF_DRIVING_STATE_SENSOR = "driving_state_sensor"
 CONF_BATTERY_CAPACITY = "battery_capacity"
