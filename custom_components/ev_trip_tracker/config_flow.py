@@ -9,6 +9,7 @@ from .const import (
     DOMAIN,
     CONF_ODOMETER_SENSOR,
     CONF_BATTERY_SENSOR,
+    CONF_CHARGING_STATE_SENSOR,
     CONF_LOCATION_TRACKER,
     CONF_DRIVING_STATE_SENSOR,
     CONF_BATTERY_CAPACITY,
@@ -69,6 +70,9 @@ class EVTripTrackerOptionsFlow(config_entries.OptionsFlow):
                     CONF_BATTERY_SENSOR, default=current.get(CONF_BATTERY_SENSOR)
                 ): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Optional(CONF_CHARGING_STATE_SENSOR): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain=["binary_sensor", "sensor"])
                 ),
                 vol.Required(
                     CONF_LOCATION_TRACKER, default=current.get(CONF_LOCATION_TRACKER)
@@ -141,6 +145,9 @@ class EVTripTrackerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
                 vol.Required(CONF_BATTERY_SENSOR): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Optional(CONF_CHARGING_STATE_SENSOR): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain=["binary_sensor", "sensor"])
                 ),
                 vol.Required(CONF_LOCATION_TRACKER): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="device_tracker")
