@@ -11,6 +11,7 @@ from .const import (
     DOMAIN,
     CONF_ODOMETER_SENSOR,
     CONF_BATTERY_SENSOR,
+    CONF_CHARGING_STATE_SENSOR,
     CONF_LOCATION_TRACKER,
     CONF_DRIVING_STATE_SENSOR,
     CONF_BATTERY_CAPACITY,
@@ -70,6 +71,7 @@ class EVCurrentTripSensor(SensorEntity):
         self._state = "idle"
         self._trip_data = {}
         self._unsub = None
+        self._unsub_charging = None
         self._end_trip_timer = None
         self._temperature_readings = []
 
@@ -80,6 +82,14 @@ class EVCurrentTripSensor(SensorEntity):
             [self._config[CONF_DRIVING_STATE_SENSOR]],
             self._handle_driving_state_change,
         )
+
+        charging_sensor = self._config.get(CONF_CHARGING_STATE_SENSOR)
+        if charging_sensor:
+            self._unsub_charging = async_track_state_change_event(
+                self.hass,
+                [charging_sensor],
+                self._handle_charging_state_change,
+            )
 
         # Listen for options updates
         self.async_on_remove(
@@ -92,6 +102,18 @@ class EVCurrentTripSensor(SensorEntity):
         """Handle options update."""
         self._config = {**entry.data, **entry.options}
         _LOGGER.debug("Options updated: %s", self._config)
+        # Re-subscribe charging sensor in case it changed
+        if self._unsub_charging:
+            self._unsub_charging()
+            self._unsub_charging = None
+
+        charging_sensor = self._config.get(CONF_CHARGING_STATE_SENSOR)
+        if charging_sensor:
+            self._unsub_charging = async_track_state_change_event(
+                self.hass,
+                [charging_sensor],
+                self._handle_charging_state_change,
+            )
 
     async def async_will_remove_from_hass(self) -> None:
         """Clean up."""
@@ -99,6 +121,8 @@ class EVCurrentTripSensor(SensorEntity):
             self._unsub()
         if self._end_trip_timer:
             self._end_trip_timer()
+        if self._unsub_charging:
+            self._unsub_charging()
 
     @callback
     def _handle_driving_state_change(self, event) -> None:
@@ -136,6 +160,36 @@ class EVCurrentTripSensor(SensorEntity):
             self._end_trip_timer = async_call_later(
                 self.hass, delay, self._delayed_end_trip
             )
+
+    @callback
+    def _handle_charging_state_change(self, event) -> None:
+        """Handle charging state changes."""
+        new_state = event.data.get("new_state")
+        if new_state is None:
+            return
+
+        is_charging = new_state.state in [
+            "on",
+            "charging",
+            "Charging",
+            "ac",
+            "dc",
+            "true",
+            "True",
+            True,
+        ]
+
+        if is_charging and self._state == "active":
+            _LOGGER.info("Charging detected - ending trip immediately")
+
+            # Cancel any pending delayed trip end
+            if self._end_trip_timer:
+                self._end_trip_timer()
+                self._end_trip_timer = None
+
+            # Set actual end time now
+            self._trip_data["_actual_end_time"] = datetime.now().isoformat()
+            self.hass.async_create_task(self._end_trip())
 
     @callback
     def _delayed_end_trip(self, _now) -> None:
