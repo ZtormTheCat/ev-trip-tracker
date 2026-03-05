@@ -305,6 +305,8 @@ class EVCurrentTripSensor(SensorEntity):
 
         # Duration
         duration = end_time - start_time
+        self._trip_data[ATTR_DURATION] = round(duration.total_seconds() / 60, 2)
+
         seconds = duration.total_seconds()
         hours, remainder = divmod(seconds, 3600)
         minutes, seconds = divmod(remainder, 60)

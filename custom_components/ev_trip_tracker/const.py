@@ -25,6 +25,7 @@ ATTR_DISTANCE = "distance"
 ATTR_ENERGY_USED = "energy_used"
 ATTR_ENERGY_CONSUMPTION = "energy_consumption"
 ATTR_AVG_SPEED = "avg_speed"
+ATTR_DURATION = "duration_minutes"  # minutes
 ATTR_DURATION_FORMATTED = "duration_formatted"
 ATTR_START_ELEVATION = "start_elevation"
 ATTR_END_ELEVATION = "end_elevation"
