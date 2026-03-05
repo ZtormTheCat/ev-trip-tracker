@@ -34,6 +34,7 @@ from .const import (
     ATTR_ENERGY_CONSUMPTION,
     ATTR_AVG_SPEED,
     ATTR_DURATION,
+    ATTR_DURATION_FORMATTED,
     ATTR_START_ELEVATION,
     ATTR_END_ELEVATION,
     ATTR_ELEVATION_DIFF,
@@ -304,7 +305,14 @@ class EVCurrentTripSensor(SensorEntity):
 
         # Duration
         duration = end_time - start_time
-        self._trip_data[ATTR_DURATION] = str(duration)
+        self._trip_data[ATTR_DURATION] = round(duration.total_seconds() / 60, 2)
+
+        seconds = duration.total_seconds()
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        self._trip_data[ATTR_DURATION_FORMATTED] = (
+            f"{int(hours)}:{int(minutes):02d}:{int(seconds):02d}"
+        )
 
         # Average speed
         if self._trip_data.get(ATTR_DISTANCE) and duration.total_seconds() > 0:
